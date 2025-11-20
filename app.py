@@ -74,10 +74,9 @@ def analyze_multi(text: str):
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Abjad + Element Analyzer", layout="centered")
-st.title("Abjad + Element Analyzer")
-st.markdown("Enter an Arabic word to compute per-letter Abjad values and elemental mapping. Elements are shown in Arabic (نار، تراب، هواء، ماء).")
+st.title("الحساب العددي")
 
-word = st.text_input("Single word input (Arabic)")
+word = st.text_input("Enter word")
 if word:
     df, total = analyze_word(word)
     st.markdown(f"**Word (normalized):** `{normalize_ar(word)}`  ")
@@ -88,8 +87,7 @@ if word:
         st.write("No Arabic letters detected.")
 
 st.markdown("---")
-st.markdown("Multiple words (space-separated)")
-multi = st.text_area("Enter multiple words (space-separated)")
+multi = st.text_area("Enter multiple words")
 if multi:
     df_multi = analyze_multi(multi)
     if not df_multi.empty:
@@ -100,4 +98,3 @@ if multi:
         st.write("No valid Arabic words detected.")
 
 st.markdown("---")
-st.markdown("Notes: normalization removes diacritics and non-Arabic characters. Customize mappings in the app source code.")
