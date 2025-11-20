@@ -73,7 +73,7 @@ def analyze_multi(text: str):
     return pd.DataFrame(out)
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Abjad + Element Analyzer", layout="centered")
+st.set_page_config(page_title="الحساب العددي", layout="centered")
 st.title("الحساب العددي")
 
 word = st.text_input("Enter word")
