@@ -11,6 +11,29 @@ ABJAD_CSV = BASE / "abjad.csv"
 ELEMENTS_CSV = BASE / "elements.csv"
 A3DAD_CSV = BASE / "a3dad_2.csv"
 
+# --- Normalization helpers / regex ---
+DIACRITICS = re.compile(r'[\u064B-\u0652\u0640]')
+
+def normalize_ar(t: str) -> str:
+    if not isinstance(t, str):
+        return ""
+    t = t.strip()
+    t = DIACRITICS.sub('', t)
+    t = t.replace('\u200f', '')
+    t = t.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا')
+    t = t.replace('ى', 'ي')
+    t = re.sub(r'[^\u0600-\u06FF ]+', '', t)
+    return t
+
+def normalize_letter(ch: str) -> str:
+    if not isinstance(ch, str):
+        return ""
+    ch = ch.strip()
+    ch = DIACRITICS.sub('', ch)
+    ch = ch.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا')
+    ch = ch.replace('ى', 'ي')
+    return ch
+
 # --- Helpers to load CSVs if present ---
 def load_abjad_from_csv(path: Path):
     if not path.exists():
@@ -35,7 +58,10 @@ def load_abjad_from_csv(path: Path):
         return None
     mapping = {}
     for _, r in df.iterrows():
-        ch = str(r[letter_col]).strip()
+        raw_ch = str(r[letter_col]).strip()
+        ch = normalize_letter(raw_ch)
+        if not ch:
+            continue
         try:
             v = int(r[value_col])
         except Exception:
@@ -43,7 +69,7 @@ def load_abjad_from_csv(path: Path):
                 v = int(float(r[value_col]))
             except Exception:
                 v = 0
-        if ch:
+        if ch not in mapping:
             mapping[ch] = v
     return mapping
 
@@ -68,34 +94,14 @@ def load_elements_from_csv(path: Path):
             return None
     mapping = {}
     for _, r in df.iterrows():
-        ch = str(r[letter_col]).strip()
+        raw_ch = str(r[letter_col]).strip()
+        ch = normalize_letter(raw_ch)
+        if not ch:
+            continue
         elt = str(r[elt_col]).strip()
-        if ch:
+        if ch not in mapping:
             mapping[ch] = elt
     return mapping
-
-# --- Normalization helpers / regex ---
-DIACRITICS = re.compile(r'[\u064B-\u0652\u0640]')
-
-def normalize_ar(t: str) -> str:
-    if not isinstance(t, str):
-        return ""
-    t = t.strip()
-    t = DIACRITICS.sub('', t)
-    t = t.replace('\u200f', '')
-    t = t.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا')
-    t = t.replace('ى', 'ي')
-    t = re.sub(r'[^\u0600-\u06FF ]+', '', t)
-    return t
-
-def normalize_letter(ch: str) -> str:
-    if not isinstance(ch, str):
-        return ""
-    ch = ch.strip()
-    ch = DIACRITICS.sub('', ch)
-    ch = ch.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا')
-    ch = ch.replace('ى', 'ي')
-    return ch
 
 def load_a3dad_from_csv(path: Path):
     if not path.exists():
@@ -159,8 +165,26 @@ FALLBACK_ELEMENTS = {
     'د':'ماء','ح':'ماء','ل':'ماء','ع':'ماء','ر':'ماء','خ':'ماء','غ':'ماء'
 }
 
-ABJAD = load_abjad_from_csv(ABJAD_CSV) or FALLBACK_ABJAD
-ELEMENT = load_elements_from_csv(ELEMENTS_CSV) or FALLBACK_ELEMENTS
+def normalize_dict_keys(mapping: dict) -> dict:
+    norm = {}
+    for k, v in mapping.items():
+        nk = normalize_letter(k)
+        if not nk:
+            continue
+        if nk not in norm:
+            norm[nk] = v
+    return norm
+
+# Load and normalize mappings
+ABJAD_RAW = load_abjad_from_csv(ABJAD_CSV) or FALLBACK_ABJAD
+ELEMENT_RAW = load_elements_from_csv(ELEMENTS_CSV) or FALLBACK_ELEMENTS
+
+ABJAD = normalize_dict_keys(ABJAD_RAW)
+ELEMENT = normalize_dict_keys(ELEMENT_RAW)
+
+# Ensure a single canonical alif with نار
+ELEMENT['ا'] = 'نار'
+
 A3DAD, A3DAD_RAW_DF = load_a3dad_from_csv(A3DAD_CSV)
 
 # --- First-page analysis ---
@@ -244,6 +268,7 @@ with col_main:
 
         st.subheader("قائمة الحروف")
 
+        # letters already normalized; alif variants collapsed into 'ا'
         letters = sorted(set(ABJAD.keys()).union(ELEMENT.keys()))
         rows = []
         for ch in letters:
